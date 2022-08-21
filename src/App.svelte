@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { game } from "./viewModel";
+  import { view } from "./viewModel";
 </script>
 
-{#if game.view.type === "round"}
+{#if view.type === "round"}
   <div class="fixed inset-0 flex flex-col">
     <div class="flex flex-auto flex-col gap-8 items-center justify-center">
-      <h1 class="text-2xl">Round {game.view.roundNumber}</h1>
+      <h1 class="text-2xl">Round {view.roundNumber}</h1>
       <table class="text-4xl font-extralight">
         <thead>
           <tr>
@@ -18,7 +18,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each game.view.results as row}
+          {#each view.results as row}
             <tr>
               <td class="pr-3">
                 {row.nickname}
@@ -54,12 +54,38 @@
       </table>
       <div>
         <span>Active modifiers:</span>
-        {#each game.view.modifiers as mod}
+        {#each view.modifiers as mod}
           <span class="pl-4 text-slate-400 font-bold">{mod}</span>
         {:else}
           None
         {/each}
       </div>
+    </div>
+  </div>
+{:else if view.type === "set-ranking"}
+  <div class="fixed inset-0 flex flex-col">
+    <div class="flex flex-auto flex-col gap-8 items-center justify-center">
+      <h1 class="text-2xl">Set {view.setNumber}</h1>
+      <table class="text-4xl font-extralight">
+        <thead>
+          <tr>
+            <th class="text-left text-xl">Name</th>
+            <th class="text-right text-xl" colspan="2">Total Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each view.entries as row}
+            <tr>
+              <td class="pr-3">
+                {row.name}
+              </td>
+              <td class="pl-4 text-right">
+                {row.points}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     </div>
   </div>
 {/if}

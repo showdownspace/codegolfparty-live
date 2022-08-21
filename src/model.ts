@@ -45,11 +45,10 @@ interface ProcessedResult extends CodinGameResult {
 }
 
 interface RoundSettings {
-  number: number;
   multipliers: { [lang: string]: number };
 }
 
-export type View = RoundView | NoneView;
+export type View = RoundView | NoneView | SetRankingView;
 
 export interface RoundView {
   type: "round";
@@ -58,15 +57,35 @@ export interface RoundView {
   roundNumber: number;
 }
 
+export interface SetRankingView {
+  type: "set-ranking";
+  setNumber: number;
+  entries: RankingEntry[];
+}
+
+export interface RankingEntry {
+  name: string;
+  points: number;
+}
+
 export interface NoneView {
   type: "none";
 }
 
+export interface Player {
+  name: string;
+  score: number;
+}
+
 export class Game {
-  roundSettings: RoundSettings = createDefaultRoundSettings(0);
+  roundSettings: RoundSettings = createDefaultRoundSettings();
   view: View = { type: "none" };
-  round(n: number) {
-    this.roundSettings = createDefaultRoundSettings(n);
+  playersInCurrentSet: Record<string, Player> = {};
+  currentRoundNumber = 0;
+  currentSetNumber = 1;
+  newRound() {
+    this.roundSettings = createDefaultRoundSettings();
+    this.currentRoundNumber += 1;
     return this;
   }
   setMultiplier(language: Lang, multiplier = 1) {
@@ -122,18 +141,45 @@ export class Game {
     // Sort by score
     // Apply first-of-language bonus
 
+    // Add score
+    for (const row of results) {
+      this.getPlayerInCurrentSet(row).score += row.adjustedScore;
+    }
+
     this.view = {
       type: "round",
       results,
       modifiers,
-      roundNumber: this.roundSettings.number,
+      roundNumber: this.currentRoundNumber,
     };
     delete this.roundSettings;
   }
+
+  showSetRanking() {
+    this.view = {
+      type: "set-ranking",
+      setNumber: 1,
+      entries: Object.values(this.playersInCurrentSet)
+        .map((player) => ({
+          name: player.name,
+          points: player.score,
+        }))
+        .sort((a, b) => b.points - a.points),
+    };
+  }
+
+  private getPlayerInCurrentSet(row: ProcessedResult) {
+    if (!this.playersInCurrentSet[row.userId]) {
+      this.playersInCurrentSet[row.userId] = {
+        name: row.nickname,
+        score: 0,
+      };
+    }
+    return this.playersInCurrentSet[row.userId];
+  }
 }
-function createDefaultRoundSettings(n: number): RoundSettings {
+function createDefaultRoundSettings(): RoundSettings {
   return {
-    number: n,
     multipliers: {},
   };
 }
