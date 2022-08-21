@@ -46,6 +46,7 @@ interface ProcessedResult extends CodinGameResult {
 
 interface RoundSettings {
   number: number;
+  multipliers: { [lang: string]: number };
 }
 
 export type View = RoundView | NoneView;
@@ -53,6 +54,8 @@ export type View = RoundView | NoneView;
 export interface RoundView {
   type: "round";
   results: ProcessedResult[];
+  modifiers: string[];
+  roundNumber: number;
 }
 
 export interface NoneView {
@@ -60,26 +63,29 @@ export interface NoneView {
 }
 
 export class Game {
-  roundSettings: RoundSettings = {
-    number: 0,
-  };
+  roundSettings: RoundSettings = createDefaultRoundSettings(0);
   view: View = { type: "none" };
   round(n: number) {
-    this.roundSettings = { number: n };
+    this.roundSettings = createDefaultRoundSettings(n);
     return this;
   }
   setMultiplier(language: Lang, multiplier = 1) {
-    this.roundSettings[`Multiplier: ${language}`] = multiplier;
+    this.roundSettings.multipliers[language] = multiplier;
     return this;
   }
   play(inResults: CodinGameResult[]) {
     const results = inResults as ProcessedResult[];
+    const modifiers: string[] = [];
+
     // Apply multipliers
+    for (const [language, multiplier] of Object.entries(
+      this.roundSettings.multipliers
+    )) {
+      modifiers.push(`${language} x${multiplier}`);
+    }
     for (const row of results) {
-      const multiplier = this.roundSettings[`Multiplier: ${row.language}`];
-      if (multiplier != null) {
-        row.languageMultiplier = multiplier;
-      }
+      row.languageMultiplier =
+        this.roundSettings.multipliers[row.language] ?? 1;
       row.originalCount = +(row.criterion || Infinity);
       row.adjustedCount = row.originalCount * (row.languageMultiplier ?? 1);
       row.testcaseScore = (parseInt(row.score) || 0) / 100;
@@ -116,10 +122,18 @@ export class Game {
     // Sort by score
     // Apply first-of-language bonus
 
-    delete this.roundSettings;
     this.view = {
       type: "round",
       results,
+      modifiers,
+      roundNumber: this.roundSettings.number,
     };
+    delete this.roundSettings;
   }
+}
+function createDefaultRoundSettings(n: number): RoundSettings {
+  return {
+    number: n,
+    multipliers: {},
+  };
 }

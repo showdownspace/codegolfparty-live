@@ -4,7 +4,8 @@
 
 {#if game.view.type === "round"}
   <div class="fixed inset-0 flex flex-col">
-    <div class="flex flex-auto items-center justify-center">
+    <div class="flex flex-auto flex-col gap-8 items-center justify-center">
+      <h1 class="text-2xl">Round {game.view.roundNumber}</h1>
       <table class="text-4xl font-extralight">
         <thead>
           <tr>
@@ -51,6 +52,14 @@
           {/each}
         </tbody>
       </table>
+      <div>
+        <span>Active modifiers:</span>
+        {#each game.view.modifiers as mod}
+          <span class="pl-4 text-slate-400 font-bold">{mod}</span>
+        {:else}
+          None
+        {/each}
+      </div>
     </div>
   </div>
 {/if}
