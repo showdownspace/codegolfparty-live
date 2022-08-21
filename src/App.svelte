@@ -1,5 +1,4 @@
 <script lang="ts">
-  import AdjustableNumber from "./AdjustableNumber.svelte";
   import { game } from "./viewModel";
 </script>
 
