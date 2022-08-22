@@ -32,7 +32,7 @@ interface CodinGameResult {
   score: string;
   duration: string;
   language: string;
-  criterion: string;
+  criterion?: string;
 }
 
 interface ProcessedResult extends CodinGameResult {
@@ -140,6 +140,13 @@ export class Game {
     // Apply language bonus
     // Sort by score
     // Apply first-of-language bonus
+
+    // Round score
+    results.sort((a, b) => b.adjustedScore - a.adjustedScore);
+    for (const row of results) {
+      row.baseScore = Math.round(row.baseScore);
+      row.adjustedScore = Math.round(row.adjustedScore);
+    }
 
     // Add score
     for (const row of results) {
