@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { view } from "./viewModel";
+  import type { Modifier } from "./model";
+
+  import { bonusClass, buffClass, nerfClass, view } from "./viewModel";
   const mapLang = {
     "Python 3": "Python",
     JavaScript: "JS",
@@ -12,6 +14,12 @@
   }
   function formatName(n: string) {
     return n || "---";
+  }
+  function modifierClass(m: Modifier["type"]) {
+    if (m === "buff") return buffClass;
+    if (m === "nerf") return nerfClass;
+    if (m === "bonus") return bonusClass;
+    return "";
   }
 </script>
 
@@ -47,8 +55,13 @@
                 {row.score}
               </td>
 
-              <td class="pl-3 text-center opacity-50 text-[0.75em]">
-                <span class:opacity-0={row.originalCount === row.adjustedCount}>
+              <td class="pl-3 text-center text-[0.75em]">
+                <span
+                  class:opacity-0={row.originalCount === row.adjustedCount}
+                  class={modifierClass(
+                    row.adjustedCount > row.originalCount ? "nerf" : "buff"
+                  )}
+                >
                   {formatSize(row.originalCount)}
                 </span>
               </td>
@@ -65,8 +78,11 @@
                 {row.duration.slice(3)}
               </td>
 
-              <td class="pl-6 text-center opacity-50 text-[0.75em]">
-                <span class:opacity-0={row.baseScore === row.adjustedScore}>
+              <td class="pl-6 text-center text-[0.75em]">
+                <span
+                  class:opacity-0={row.baseScore === row.adjustedScore}
+                  class={modifierClass("bonus")}
+                >
                   {row.baseScore}
                 </span>
               </td>
@@ -85,7 +101,9 @@
       <div>
         <span>Active modifiers:</span>
         {#each view.modifiers as mod}
-          <span class="pl-4 text-slate-400 font-bold">{mod}</span>
+          <span class="pl-4 font-bold {modifierClass(mod.type)}"
+            >{mod.name}</span
+          >
         {:else}
           None
         {/each}

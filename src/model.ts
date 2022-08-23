@@ -46,6 +46,7 @@ interface ProcessedResult extends CodinGameResult {
 
 interface RoundSettings {
   multipliers: { [lang: string]: number };
+  bonus: { [lang: string]: number };
 }
 
 export type View = RoundView | NoneView | SetRankingView;
@@ -53,8 +54,13 @@ export type View = RoundView | NoneView | SetRankingView;
 export interface RoundView {
   type: "round";
   results: ProcessedResult[];
-  modifiers: string[];
+  modifiers: Modifier[];
   roundNumber: number;
+}
+
+export interface Modifier {
+  name: string;
+  type: "nerf" | "buff" | "bonus";
 }
 
 export interface SetRankingView {
@@ -86,21 +92,25 @@ export class Game {
   newRound() {
     this.roundSettings = createDefaultRoundSettings();
     this.currentRoundNumber += 1;
-    return this;
   }
-  setMultiplier(language: Lang, multiplier = 1) {
+  setLanguageMultiplier(language: Lang, multiplier: number) {
     this.roundSettings.multipliers[language] = multiplier;
-    return this;
+  }
+  setLanguageBonus(language: Lang, bonus: number) {
+    this.roundSettings.bonus[language] = bonus;
   }
   play(inResults: CodinGameResult[]) {
     const results = inResults as ProcessedResult[];
-    const modifiers: string[] = [];
+    const modifiers: Modifier[] = [];
 
     // Apply multipliers
     for (const [language, multiplier] of Object.entries(
       this.roundSettings.multipliers
     )) {
-      modifiers.push(`${language} x${multiplier}`);
+      modifiers.push({
+        name: `${language} x${multiplier}`,
+        type: multiplier > 1 ? "nerf" : "buff",
+      });
     }
     for (const row of results) {
       row.languageMultiplier =
@@ -138,10 +148,20 @@ export class Game {
     results.sort((a, b) => b.baseScore - a.baseScore);
 
     // Apply language bonus
+    for (const [lang, bonus] of Object.entries(this.roundSettings.bonus)) {
+      modifiers.push({
+        name: `${lang} +${bonus}`,
+        type: "bonus",
+      });
+    }
+    for (const row of results) {
+      row.adjustedScore += this.roundSettings.bonus[row.language] ?? 0;
+    }
+
     // Sort by score
     // Apply first-of-language bonus
 
-    // Round score
+    // Round up score
     results.sort((a, b) => b.adjustedScore - a.adjustedScore);
     for (const row of results) {
       row.baseScore = Math.round(row.baseScore);
@@ -188,5 +208,6 @@ export class Game {
 function createDefaultRoundSettings(): RoundSettings {
   return {
     multipliers: {},
+    bonus: {},
   };
 }
