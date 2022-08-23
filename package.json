@@ -12,6 +12,7 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^1.0.1",
     "@tsconfig/svelte": "^3.0.0",
+    "@types/lodash-es": "^4.17.6",
     "autoprefixer": "^10.4.8",
     "postcss": "^8.4.16",
     "svelte": "^3.49.0",
@@ -24,6 +25,7 @@
   },
   "packageManager": "yarn@3.2.2",
   "dependencies": {
-    "@fontsource/jetbrains-mono": "^4.5.10"
+    "@fontsource/jetbrains-mono": "^4.5.10",
+    "lodash-es": "^4.17.21"
   }
 }
