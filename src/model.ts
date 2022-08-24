@@ -1,3 +1,5 @@
+import { clamp, result } from "lodash-es";
+
 export type Lang =
   | "Bash"
   | "C"
@@ -44,7 +46,7 @@ interface ProcessedResult extends CodinGameResult {
   adjustedScore: number;
 }
 
-interface RoundSettings {
+interface RoundSettings extends RoundConfig {
   multipliers: { [lang: string]: number };
   bonus: { [lang: string]: number };
 }
@@ -83,27 +85,115 @@ export interface Player {
   score: number;
 }
 
+export interface RoundConfig {
+  /**
+   * @description Automatically adjust the language multipiler to the inverse amount of times the language is used
+   */
+  langAutoBalance?: "none" | "allRounds" | "lastRound" | "currentRound";
+  /**
+   * @description Automatically raise the minimum score multipiler as the round goes on
+   */
+  autoScaleMultipiler?: boolean;
+  /**
+   * @description Maximum percent of language used before deduction penalty in language autobalancing
+   * @default 0.15
+   */
+  penaltyGraceValue?: number;
+}
+
+export type LanguagesOccurences = Partial<Record<Lang, number>>;
+
+export interface LanguageUsageHistory {
+  rounds: Partial<{
+    roundCount: number;
+    langs: LanguagesOccurences;
+  }>[];
+  total: Partial<Record<Lang, number>>;
+}
+
 export class Game {
-  roundSettings: RoundSettings = createDefaultRoundSettings();
+  // Round setting
+  roundSettings: RoundSettings & RoundConfig = createDefaultRoundSettings();
+  /**
+   * @description view property determines which UI should be displayed at the moment
+   */
   view: View = { type: "none" };
   playersInCurrentSet: Record<string, Player> = {};
+  langUsedHistory: LanguageUsageHistory = {
+    total: {},
+    rounds: [],
+  };
   currentRoundNumber = 0;
   currentSetNumber = 1;
-  newRound() {
-    this.roundSettings = createDefaultRoundSettings();
+
+  // Maximum percent of language used before deduction penalty in language autobalancing
+  penaltyGraceValue = 0.15;
+
+  /**
+   * @description Start a new round with default round settings
+   */
+  newRound(config?: RoundConfig) {
+    console.log(config);
+    this.roundSettings = createDefaultRoundSettings(config);
     this.currentRoundNumber += 1;
   }
+
+  /**
+   * @descrition Apply score multiplier for a language only for the current round
+   * @param language
+   * @param multiplier
+   */
   setLanguageMultiplier(language: Lang, multiplier: number) {
     this.roundSettings.multipliers[language] = multiplier;
   }
+
+  /**
+   * @description Apply flat score bonus for a language only for the current round
+   * @param language
+   * @param bonus
+   */
   setLanguageBonus(language: Lang, bonus: number) {
     this.roundSettings.bonus[language] = bonus;
   }
+
+  /**
+   * @description Append the array of scores
+   * @param inResults
+   */
   play(inResults: CodinGameResult[]) {
     const results = inResults as ProcessedResult[];
     const modifiers: Modifier[] = [];
 
-    // Apply multipliers
+    // Append the languages usage history
+    const latestLangStats = {
+      roundCount: this.currentRoundNumber,
+      langs: getLangsOccurance(results),
+    };
+    this.langUsedHistory.rounds.push(latestLangStats);
+    //Add languages usage to the total languages count
+    for (const [lang, times] of Object.entries(latestLangStats.langs)) {
+      this.langUsedHistory.total[lang] += times;
+    }
+
+    // Apply the autobalance multipiler under the GM condition
+    switch (this.roundSettings.langAutoBalance) {
+      case "allRounds":
+        this.computeLangUsagePenalty(this.langUsedHistory.total, results);
+        break;
+      case "currentRound":
+        this.computeLangUsagePenalty(latestLangStats.langs, results);
+        break;
+      case "lastRound":
+        this.computeLangUsagePenalty(
+          this.langUsedHistory.rounds[this.currentRoundNumber - 2].langs,
+          results
+        );
+        break;
+      default:
+        break;
+    }
+
+    // Calculate & Apply multipliers
     for (const [language, multiplier] of Object.entries(
       this.roundSettings.multipliers
     )) {
@@ -120,7 +210,7 @@ export class Game {
       row.testcaseScore = (parseInt(row.score) || 0) / 100;
     }
 
-    // Sort rank
+    // Compute the duration of each player
     const parseDuration = (x) => {
       const parts = x.split(":");
       let out = +parts.pop() || 0;
@@ -128,6 +218,7 @@ export class Game {
       out += (+parts.pop() || 0) * 60 * 60;
       return out;
     };
+    // Sort ranking
     results.sort(
       (a, b) => parseDuration(a.duration) - parseDuration(b.duration)
     );
@@ -173,15 +264,21 @@ export class Game {
       this.getPlayerInCurrentSet(row).score += row.adjustedScore;
     }
 
+    // Applies the total score and the modifier used
     this.view = {
       type: "round",
       results,
       modifiers,
       roundNumber: this.currentRoundNumber,
     };
+
+    // Delete the previous round settings
     delete this.roundSettings;
   }
 
+  /**
+   * @description Change the UI of the website to show the total score (so far) and ranking
+   */
   showSetRanking() {
     this.view = {
       type: "set-ranking",
@@ -204,10 +301,66 @@ export class Game {
     }
     return this.playersInCurrentSet[row.userId];
   }
+
+  private computeLangUsagePenalty(
+    usage: Partial<Record<Lang, number>>,
+    results: ProcessedResult[]
+  ) {
+    for (const [lang, times] of Object.entries(usage)) {
+      // code length multipiler is between 1 and 1.5
+      const multipiler = clamp(
+        1 + times / results.length - this.roundSettings?.penaltyGraceValue,
+        1,
+        1.5
+      );
+
+      console.log(
+        `${lang}-USAGE:${((times / results.length) * 100).toFixed(
+          2
+        )}%-MUL:${multipiler}`
+      );
+      this.setLanguageMultiplier(
+        lang as Lang,
+        parseFloat(multipiler.toFixed(2))
+      );
+    }
+  }
 }
-function createDefaultRoundSettings(): RoundSettings {
+
+/**
+ * @internal Return default RoundSettings property to the Game Object
+ * @returns
+ */
+function createDefaultRoundSettings(
+  config?: RoundConfig
+): RoundSettings & RoundConfig {
+  console.log(config);
   return {
     multipliers: {},
     bonus: {},
+    langAutoBalance: config?.langAutoBalance ?? "none",
+    autoScaleMultipiler: config?.autoScaleMultipiler ?? false,
+    penaltyGraceValue: config.penaltyGraceValue ?? 0.15,
   };
+}
+
+function getLangsOccurance(results: CodinGameResult[]) {
+  const langsWithDupe = results.map((result) => result.language);
+  const langsArrUnqiue = langsWithDupe.filter((lang, index, self) => {
+    return self.indexOf(lang) === index;
+  });
+
+  function getOccurrence(array, value) {
+    var count = 0;
+    array.forEach((v) => v === value && count++);
+    return count;
+  }
+
+  const langsOccurences: LanguagesOccurences = {};
+
+  langsArrUnqiue.forEach(
+    (lang) => (langsOccurences[lang] = getOccurrence(langsWithDupe, lang))
+  );
+
+  return langsOccurences;
 }
