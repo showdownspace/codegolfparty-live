@@ -5,9 +5,11 @@ import type { Game } from "./model";
  * @param game
  */
 export function gameData(game: Game) {
-  game.newRound();
-  game.setLanguageMultiplier("Ruby", 2);
-  game.setLanguageMultiplier("JavaScript", 0.25);
+  game.newRound({
+    langAutoBalance: "currentRound",
+  });
+  // game.setLanguageMultiplier("Ruby", 2);
+  // game.setLanguageMultiplier("JavaScript", 0.25);
 
   game.play([
     {
@@ -67,6 +69,8 @@ export function gameData(game: Game) {
       criterion: "181",
     },
   ]);
+
+  // console.log(game.view.modifiers!);
 
   // Uncomment to show set ranking
   // game.showSetRanking();
