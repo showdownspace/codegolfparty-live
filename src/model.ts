@@ -46,6 +46,22 @@ interface ProcessedResult extends CodinGameResult {
   adjustedScore: number;
 }
 
+export interface RoundConfig {
+  /**
+   * @description Automatically adjust the language multipiler to the inverse amount of times the language is used
+   */
+  langAutoBalance?: "none" | "allRounds" | "lastRound" | "currentRound";
+  /**
+   * @description Automatically raise the minimum score multipiler as the round goes on
+   */
+  autoScaleMultipiler?: boolean;
+  /**
+   * @description Maximum percent of language used before deduction penalty in language autobalancing
+   * @default 0.15
+   */
+  penaltyGraceValue?: number;
+}
+
 interface RoundSettings extends RoundConfig {
   multipliers: { [lang: string]: number };
   bonus: { [lang: string]: number };
@@ -62,7 +78,7 @@ export interface RoundView {
 
 export interface Modifier {
   name: string;
-  type: "nerf" | "buff" | "bonus";
+  type: "nerf" | "buff" | "bonus" | "mystery";
 }
 
 export interface SetRankingView {
@@ -85,22 +101,6 @@ export interface Player {
   score: number;
 }
 
-export interface RoundConfig {
-  /**
-   * @description Automatically adjust the language multipiler to the inverse amount of times the language is used
-   */
-  langAutoBalance?: "none" | "allRounds" | "lastRound" | "currentRound";
-  /**
-   * @description Automatically raise the minimum score multipiler as the round goes on
-   */
-  autoScaleMultipiler?: boolean;
-  /**
-   * @description Maximum percent of language used before deduction penalty in language autobalancing
-   * @default 0.15
-   */
-  penaltyGraceValue?: number;
-}
-
 export type LanguagesOccurences = Partial<Record<Lang, number>>;
 
 export interface LanguageUsageHistory {
@@ -114,6 +114,7 @@ export interface LanguageUsageHistory {
 export class Game {
   // Round setting
   roundSettings: RoundSettings & RoundConfig = createDefaultRoundSettings();
+
   /**
    * @description view property determines which UI should be displayed at the moment
    */
@@ -197,10 +198,12 @@ export class Game {
     for (const [language, multiplier] of Object.entries(
       this.roundSettings.multipliers
     )) {
-      modifiers.push({
-        name: `${language} x${multiplier}`,
-        type: multiplier > 1 ? "nerf" : "buff",
-      });
+      if (multiplier !== 1) {
+        modifiers.push({
+          name: `${language} x${multiplier}`,
+          type: multiplier > 1 ? "nerf" : "buff",
+        });
+      }
     }
     for (const row of results) {
       row.languageMultiplier =
@@ -340,7 +343,7 @@ function createDefaultRoundSettings(
     bonus: {},
     langAutoBalance: config?.langAutoBalance ?? "none",
     autoScaleMultipiler: config?.autoScaleMultipiler ?? false,
-    penaltyGraceValue: config.penaltyGraceValue ?? 0.15,
+    penaltyGraceValue: config?.penaltyGraceValue ?? 0.15,
   };
 }
 
