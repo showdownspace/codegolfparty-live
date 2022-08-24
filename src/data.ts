@@ -1,5 +1,9 @@
 import type { Game } from "./model";
 
+/**
+ * @description Change the code here to update the scoreboard
+ * @param game
+ */
 export function gameData(game: Game) {
   game.newRound();
   game.setLanguageMultiplier("Ruby", 2);

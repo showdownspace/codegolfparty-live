@@ -84,26 +84,51 @@ export interface Player {
 }
 
 export class Game {
+  // Round setting
   roundSettings: RoundSettings = createDefaultRoundSettings();
+  /**
+   * @description view property determines which UI should be displayed at the moment
+   */
   view: View = { type: "none" };
   playersInCurrentSet: Record<string, Player> = {};
   currentRoundNumber = 0;
   currentSetNumber = 1;
+
+  /**
+   * @description Start a new round with default round settings
+   */
   newRound() {
     this.roundSettings = createDefaultRoundSettings();
     this.currentRoundNumber += 1;
   }
+
+  /**
+   * @descrition Apply score multiplier for a language only for the current round
+   * @param language
+   * @param multiplier
+   */
   setLanguageMultiplier(language: Lang, multiplier: number) {
     this.roundSettings.multipliers[language] = multiplier;
   }
+
+  /**
+   * @description Apply flat score bonus for a language only for the current round
+   * @param language
+   * @param bonus
+   */
   setLanguageBonus(language: Lang, bonus: number) {
     this.roundSettings.bonus[language] = bonus;
   }
+
+  /**
+   * @description Append the array of scores
+   * @param inResults
+   */
   play(inResults: CodinGameResult[]) {
     const results = inResults as ProcessedResult[];
     const modifiers: Modifier[] = [];
 
-    // Apply multipliers
+    // Calculate & Apply multipliers
     for (const [language, multiplier] of Object.entries(
       this.roundSettings.multipliers
     )) {
@@ -120,7 +145,7 @@ export class Game {
       row.testcaseScore = (parseInt(row.score) || 0) / 100;
     }
 
-    // Sort rank
+    // Compute the duration of each player
     const parseDuration = (x) => {
       const parts = x.split(":");
       let out = +parts.pop() || 0;
@@ -128,6 +153,7 @@ export class Game {
       out += (+parts.pop() || 0) * 60 * 60;
       return out;
     };
+    // Sort ranking
     results.sort(
       (a, b) => parseDuration(a.duration) - parseDuration(b.duration)
     );
@@ -173,15 +199,21 @@ export class Game {
       this.getPlayerInCurrentSet(row).score += row.adjustedScore;
     }
 
+    // Applies the total score and the modifier used
     this.view = {
       type: "round",
       results,
       modifiers,
       roundNumber: this.currentRoundNumber,
     };
+
+    // Delete the previous round settings
     delete this.roundSettings;
   }
 
+  /**
+   * @description Change the UI of the website to show the total score (so far) and ranking
+   */
   showSetRanking() {
     this.view = {
       type: "set-ranking",
@@ -205,6 +237,11 @@ export class Game {
     return this.playersInCurrentSet[row.userId];
   }
 }
+
+/**
+ * @internal Return default RoundSettings property to the Game Object
+ * @returns
+ */
 function createDefaultRoundSettings(): RoundSettings {
   return {
     multipliers: {},
