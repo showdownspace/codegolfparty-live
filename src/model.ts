@@ -94,6 +94,11 @@ export interface RoundConfig {
    * @description Automatically raise the minimum score multipiler as the round goes on
    */
   autoScaleMultipiler?: boolean;
+  /**
+   * @description Maximum percent of language used before deduction penalty in language autobalancing
+   * @default 0.15
+   */
+  penaltyGraceValue?: number;
 }
 
 export type LanguagesOccurences = Partial<Record<Lang, number>>;
@@ -122,7 +127,7 @@ export class Game {
   currentSetNumber = 1;
 
   // Maximum percent of language used before deduction penalty in language autobalancing
-  GRACE_PERCENT = 0.15;
+  penaltyGraceValue = 0.15;
 
   /**
    * @description Start a new round with default round settings
@@ -304,7 +309,7 @@ export class Game {
     for (const [lang, times] of Object.entries(usage)) {
       // code length multipiler is between 1 and 1.5
       const multipiler = clamp(
-        1 + times / results.length - this.GRACE_PERCENT,
+        1 + times / results.length - this.roundSettings?.penaltyGraceValue,
         1,
         1.5
       );
@@ -335,6 +340,7 @@ function createDefaultRoundSettings(
     bonus: {},
     langAutoBalance: config?.langAutoBalance ?? "none",
     autoScaleMultipiler: config?.autoScaleMultipiler ?? false,
+    penaltyGraceValue: config.penaltyGraceValue ?? 0.15,
   };
 }
 
