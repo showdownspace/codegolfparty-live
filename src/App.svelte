@@ -1,11 +1,13 @@
 <script lang="ts">
-  import type { Modifier } from "./model";
+  import type { Lang, Modifier } from "./model";
 
-  import { bonusClass, buffClass, nerfClass, view } from "./viewModel";
-  const mapLang = {
-    "Python 3": "Python",
-    JavaScript: "JS",
-  };
+  import {
+    bonusClass,
+    buffClass,
+    mysteryClass,
+    nerfClass,
+    view,
+  } from "./viewModel";
   function formatSize(x: number) {
     if (!Number.isFinite(x)) {
       return "---";
@@ -19,27 +21,38 @@
     if (m === "buff") return buffClass;
     if (m === "nerf") return nerfClass;
     if (m === "bonus") return bonusClass;
+    if (m === "mystery") return mysteryClass;
     return "";
   }
 </script>
 
-{#if view.type === "round"}
-  <div class="fixed inset-0 flex flex-col">
-    <div class="flex flex-auto flex-col gap-8 items-center justify-center">
-      <h1 class="text-2xl">Round {view.roundNumber}</h1>
+<div class="fixed inset-0 flex flex-col">
+  <div class="flex flex-auto flex-col gap-8 items-center justify-center">
+    {#if view.type === "round-info"}
+      <h1 class="text-2xl">Set {view.setNumber}, Round {view.roundNumber}</h1>
+
+      {#each view.modifiers as mod}
+        <span class="text-3xl font-bold {modifierClass(mod.type)}">
+          {mod.name}
+        </span>
+      {:else}
+        <span class="text-3xl">No modifiers</span>
+      {/each}
+    {:else if view.type === "round-result"}
+      <h1 class="text-2xl">Set {view.setNumber}, Round {view.roundNumber}</h1>
       <table class="text-4xl font-extralight">
         <thead>
           <tr>
             <th class="uppercase opacity-60 text-left text-xl">Name</th>
             <th class="uppercase opacity-60 text-center text-xl">Language</th>
             <th class="uppercase opacity-60 text-center text-xl">Tests</th>
-            <th class="uppercase opacity-60 text-center text-xl" colspan="3"
-              >Code Length</th
-            >
+            <th class="uppercase opacity-60 text-center text-xl" colspan="3">
+              Code Length
+            </th>
             <th class="uppercase opacity-60 text-center text-xl">Time</th>
-            <th class="uppercase opacity-60 text-center text-xl" colspan="3"
-              >Round Score</th
-            >
+            <th class="uppercase opacity-60 text-center text-xl" colspan="3">
+              Round Score
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -49,7 +62,7 @@
                 {formatName(row.nickname)}
               </td>
               <td class="px-6 text-center">
-                {mapLang[row.language] || row.language}
+                {row.displayLanguage}
               </td>
               <td class="px-6 text-center">
                 {row.score}
@@ -108,11 +121,7 @@
           None
         {/each}
       </div>
-    </div>
-  </div>
-{:else if view.type === "set-ranking"}
-  <div class="fixed inset-0 flex flex-col">
-    <div class="flex flex-auto flex-col gap-8 items-center justify-center">
+    {:else if view.type === "set-ranking"}
       <h1 class="text-2xl">Set {view.setNumber}</h1>
       <table class="text-4xl font-extralight">
         <thead>
@@ -136,6 +145,6 @@
           {/each}
         </tbody>
       </table>
-    </div>
+    {/if}
   </div>
-{/if}
+</div>

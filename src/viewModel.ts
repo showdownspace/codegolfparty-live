@@ -9,3 +9,4 @@ export const view = game.view;
 export const buffClass = "text-green-400";
 export const nerfClass = "text-red-400";
 export const bonusClass = "text-yellow-400";
+export const mysteryClass = "text-violet-400";

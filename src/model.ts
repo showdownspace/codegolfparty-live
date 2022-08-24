@@ -28,6 +28,15 @@ export type Lang =
   | "TypeScript"
   | "VB.NET";
 
+const mapLang: Partial<Record<Lang, string>> = {
+  "Python 3": "Python",
+  JavaScript: "JS",
+};
+
+function formatLang(lang: string) {
+  return mapLang[lang as Lang] || lang;
+}
+
 interface CodinGameResult {
   nickname: string;
   userId: string;
@@ -38,6 +47,7 @@ interface CodinGameResult {
 }
 
 interface ProcessedResult extends CodinGameResult {
+  displayLanguage: string;
   languageMultiplier?: number;
   originalCount: number;
   adjustedCount: number;
@@ -82,20 +92,26 @@ export interface Round {
   config: RoundConfig;
 }
 
-interface RoundSettings extends RoundConfig {}
-
-export type View = RoundView | NoneView | SetRankingView;
-
-export interface RoundView {
-  type: "round";
-  results: ProcessedResult[];
-  modifiers: Modifier[];
-  roundNumber: number;
-}
+export type View = RoundResultView | RoundInfoView | NoneView | SetRankingView;
 
 export interface Modifier {
   name: string;
   type: "nerf" | "buff" | "bonus" | "mystery";
+}
+
+export interface RoundResultView {
+  type: "round-result";
+  results: ProcessedResult[];
+  modifiers: Modifier[];
+  roundNumber: number;
+  setNumber: number;
+}
+
+export interface RoundInfoView {
+  type: "round-info";
+  modifiers: Modifier[];
+  roundNumber: number;
+  setNumber: number;
 }
 
 export interface SetRankingView {
@@ -173,10 +189,18 @@ export class Game {
       config: config,
     };
     this.nextRoundNumber += 1;
+
+    // Display
+    this.view = {
+      type: "round-info",
+      modifiers: this.getEffectiveModifiers().modifiers,
+      setNumber: this.currentRound.setNumber,
+      roundNumber: this.currentRound.roundNumber,
+    };
   }
 
   private getEffectiveModifiers(
-    currentRoundStats: RoundLanguageUsageStats
+    currentRoundStats?: RoundLanguageUsageStats
   ): EffectiveModifiers {
     const modifiers: Modifier[] = [];
     const multipliers = this.currentRound.config.multipliers ?? {};
@@ -186,26 +210,31 @@ export class Game {
       multipliers[lang] = multiplier;
     };
     switch (this.currentRound.config.langAutoBalance) {
-      case "allRounds":
+      case "allRounds": {
         this.computeLangUsagePenalty(this.languageUsageStats.total, apply);
         break;
-      case "currentRound":
-        this.computeLangUsagePenalty(currentRoundStats.langs, apply);
+      }
+      case "currentRound": {
+        this.computeLangUsagePenalty(currentRoundStats?.langs || {}, apply);
+        if (!currentRoundStats) {
+          modifiers.push({
+            name: "Auto-balance x??",
+            type: "mystery",
+          });
+        }
         break;
-      case "lastRound":
-        this.computeLangUsagePenalty(
-          this.languageUsageStats.history[
-            this.languageUsageStats.history.length - 1
-          ].langs,
-          apply
-        );
+      }
+      case "lastRound": {
+        const history = this.languageUsageStats.history;
+        this.computeLangUsagePenalty(history[history.length - 1].langs, apply);
         break;
+      }
     }
 
-    for (const [language, multiplier] of Object.entries(multipliers)) {
+    for (const [lang, multiplier] of Object.entries(multipliers)) {
       if (multiplier !== 1) {
         modifiers.push({
-          name: `${language} x${multiplier}`,
+          name: `${formatLang(lang)} x${multiplier}`,
           type: multiplier > 1 ? "nerf" : "buff",
         });
       }
@@ -214,7 +243,7 @@ export class Game {
     const bonuses = this.currentRound.config.bonuses || {};
     for (const [lang, bonus] of Object.entries(bonuses)) {
       modifiers.push({
-        name: `${lang} +${bonus}`,
+        name: `${formatLang(lang)} +${bonus}`,
         type: "bonus",
       });
     }
@@ -244,6 +273,7 @@ export class Game {
 
     // Calculate & Apply multipliers
     for (const row of results) {
+      row.displayLanguage = formatLang(row.language as Lang);
       row.languageMultiplier = multipliers[row.language as Lang] ?? 1;
       row.originalCount = +(row.criterion || Infinity);
       row.adjustedCount = row.originalCount * (row.languageMultiplier ?? 1);
@@ -300,9 +330,10 @@ export class Game {
 
     // Display
     this.view = {
-      type: "round",
+      type: "round-result",
       results,
       modifiers,
+      setNumber: this.currentRound.setNumber,
       roundNumber: this.currentRound.roundNumber,
     };
 

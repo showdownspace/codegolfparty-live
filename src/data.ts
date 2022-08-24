@@ -7,9 +7,10 @@ import type { Game } from "./model";
 export function gameData(game: Game) {
   game.newRound({
     langAutoBalance: "currentRound",
+    bonuses: {
+      JavaScript: 5,
+    },
   });
-  // game.setLanguageMultiplier("Ruby", 2);
-  // game.setLanguageMultiplier("JavaScript", 0.25);
 
   game.play([
     {
@@ -73,5 +74,9 @@ export function gameData(game: Game) {
   // console.log(game.view.modifiers!);
 
   // Uncomment to show set ranking
-  // game.showSetRanking();
+  game.showSetRanking();
+
+  game.newRound({
+    langAutoBalance: "allRounds",
+  });
 }
