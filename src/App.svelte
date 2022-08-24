@@ -28,15 +28,19 @@
 
 <div class="fixed inset-0 flex flex-col">
   <div class="flex flex-auto flex-col gap-8 items-center justify-center">
-    {#if view.type === "round-info"}
+    {#if view.type === "text"}
+      <div class="text-4xl whitespace-pre-line">
+        {view.text}
+      </div>
+    {:else if view.type === "round-info"}
       <h1 class="text-2xl">Set {view.setNumber}, Round {view.roundNumber}</h1>
 
       {#each view.modifiers as mod}
-        <span class="text-3xl font-bold {modifierClass(mod.type)}">
+        <span class="text-4xl font-bold {modifierClass(mod.type)}">
           {mod.name}
         </span>
       {:else}
-        <span class="text-3xl">No modifiers</span>
+        <span class="text-4xl">No modifiers</span>
       {/each}
     {:else if view.type === "round-result"}
       <h1 class="text-2xl">Set {view.setNumber}, Round {view.roundNumber}</h1>

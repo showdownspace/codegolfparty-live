@@ -71,11 +71,9 @@ export function gameData(game: Game) {
     },
   ]);
 
-  // console.log(game.view.modifiers!);
-
-  // Uncomment to show set ranking
   game.showSetRanking();
 
+  game.goLive();
   game.newRound({
     langAutoBalance: "allRounds",
   });

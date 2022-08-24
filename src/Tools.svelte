@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { escape } from "lodash-es";
+  import PreviewScreen from "./PreviewScreen.svelte";
   let code = "// Code will appear here";
 
   function tryParse(htmlStr: string) {
@@ -160,5 +161,10 @@
       readonly
       class="text-sm w-full border border-slate-500 bg-slate-900 p-2 rounded h-[16em]"
     />
+  </div>
+
+  <div class="flex gap-4 mt-4">
+    <PreviewScreen title="Preview" src="?mode=app" />
+    <PreviewScreen title="Live" src="?mode=app&live=1" />
   </div>
 </div>

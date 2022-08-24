@@ -92,7 +92,7 @@ export interface Round {
   config: RoundConfig;
 }
 
-export type View = RoundResultView | RoundInfoView | NoneView | SetRankingView;
+export type View = RoundResultView | RoundInfoView | TextView | SetRankingView;
 
 export interface Modifier {
   name: string;
@@ -125,8 +125,9 @@ export interface RankingEntry {
   points: number;
 }
 
-export interface NoneView {
-  type: "none";
+export interface TextView {
+  type: "text";
+  text: string;
 }
 
 export interface Player {
@@ -160,9 +161,13 @@ export class Game {
   }
 
   /**
-   * @description Which UI should be displayed at the moment
+   * @description Which UI should be displayed on the preview screen
    */
-  view: View = { type: "none" };
+  view: View = { type: "text", text: "Welcome to Code Golf Party #1!" };
+  /**
+   * @description Which UI should be displayed to the audience
+   */
+  liveView = this.view;
 
   playersInCurrentSet: Record<string, Player> = {};
 
@@ -393,6 +398,10 @@ export class Game {
       );
       apply(lang as Lang, parseFloat(multipiler.toFixed(2)));
     }
+  }
+
+  goLive() {
+    this.liveView = this.view;
   }
 }
 
