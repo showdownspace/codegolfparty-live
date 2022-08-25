@@ -33,8 +33,6 @@ const mapLang: Partial<Record<Lang, string>> = {
   JavaScript: "JS",
 };
 
-var players: string[] = []
-
 function formatLang(lang: string) {
   return mapLang[lang as Lang] || lang;
 }
@@ -207,6 +205,7 @@ export class Game {
   nextRoundNumber = 1;
   currentSetNumber = 1;
   setIsFinished = false;
+  allowedPlayerIds = new Set<string>();
 
   // Maximum percent of language used before deduction penalty in language autobalancing
   penaltyGraceValue = 0.15;
@@ -316,10 +315,12 @@ export class Game {
 
   /**
    * @description Filter out user that's not in the list
-   * @param inPlayer 
+   * @param inPlayer
    */
-   addPlayers(inPlayer: string[]) {
-    players = inPlayer
+  addPlayers(inPlayer: string[]) {
+    for (const player of inPlayer) {
+      this.allowedPlayerIds.add(player);
+    }
   }
 
   /**
@@ -331,7 +332,12 @@ export class Game {
       throw new Error("Cannot play after the round is finished!");
     }
 
-    const results = players.length === 0 ? inResults as ProcessedResult[] : inResults.filter( data => players.includes(data.userId)) as ProcessedResult[];
+    const results =
+      this.allowedPlayerIds.size === 0
+        ? (inResults as ProcessedResult[])
+        : (inResults.filter((data) =>
+            this.allowedPlayerIds.has(data.userId)
+          ) as ProcessedResult[]);
 
     // Append the languages usage history
     const currentRoundStats: RoundLanguageUsageStats = {
