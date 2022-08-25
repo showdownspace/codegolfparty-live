@@ -78,6 +78,14 @@ export interface RoundConfig {
    * @description Bonus when using a language.
    */
   bonuses?: { [lang in Lang]?: number };
+  /**
+   * @description Shortest bonus.
+   */
+  shortestOfLanguageBonus?: number;
+  /**
+   * @description Fast bonus.
+   */
+  fastBonus?: number;
 }
 
 export interface EffectiveModifiers {
@@ -87,12 +95,18 @@ export interface EffectiveModifiers {
 }
 
 export interface Round {
+  finished: boolean;
   setNumber: number;
   roundNumber: number;
   config: RoundConfig;
 }
 
-export type View = RoundResultView | RoundInfoView | TextView | SetRankingView;
+export type View =
+  | RoundResultView
+  | RoundInfoView
+  | TextView
+  | SetRankingView
+  | OverallRankingView;
 
 export interface Modifier {
   name: string;
@@ -116,8 +130,16 @@ export interface RoundInfoView {
 
 export interface SetRankingView {
   type: "set-ranking";
+  roundNumber: number;
   setNumber: number;
   entries: RankingEntry[];
+}
+
+export interface OverallRankingView {
+  type: "overall-ranking";
+  setNumber: number;
+  sets: number[];
+  entries: (RankingEntry & { pointsBySet: Record<number, number> })[];
 }
 
 export interface RankingEntry {
@@ -132,6 +154,7 @@ export interface TextView {
 
 export interface Player {
   name: string;
+  scoreParts: Record<string, number>;
   score: number;
 }
 
@@ -170,6 +193,7 @@ export class Game {
   liveView = this.view;
 
   playersInCurrentSet: Record<string, Player> = {};
+  playersInGame: Record<string, Player> = {};
 
   /**
    * @description Language usage stats for past rounds
@@ -180,6 +204,7 @@ export class Game {
   };
   nextRoundNumber = 1;
   currentSetNumber = 1;
+  setIsFinished = false;
 
   // Maximum percent of language used before deduction penalty in language autobalancing
   penaltyGraceValue = 0.15;
@@ -188,7 +213,19 @@ export class Game {
    * @description Start a new round with default round settings
    */
   newRound(config: RoundConfig) {
+    if (this.setIsFinished) {
+      this.currentSetNumber++;
+      this.setIsFinished = false;
+      this.nextRoundNumber = 1;
+      this.playersInCurrentSet = {};
+    }
+    if (this._currentRound && !this._currentRound.finished) {
+      throw new Error(
+        "Cannot start a new round before the current one is finished!"
+      );
+    }
     this._currentRound = {
+      finished: false,
       setNumber: this.currentSetNumber,
       roundNumber: this.nextRoundNumber,
       config: config,
@@ -253,6 +290,21 @@ export class Game {
       });
     }
 
+    if (this.currentRound.config.fastBonus) {
+      modifiers.push({
+        name: "Fast bonus",
+        type: "bonus",
+      });
+    }
+
+    if (this.currentRound.config.shortestOfLanguageBonus) {
+      const n = this.currentRound.config.shortestOfLanguageBonus;
+      modifiers.push({
+        name: `Shortest of language +${n}`,
+        type: "bonus",
+      });
+    }
+
     return {
       modifiers,
       multipliers,
@@ -265,6 +317,10 @@ export class Game {
    * @param inResults
    */
   play(inResults: CodinGameResult[]) {
+    if (this.currentRound.finished) {
+      throw new Error("Cannot play after the round is finished!");
+    }
+
     const results = inResults as ProcessedResult[];
 
     // Append the languages usage history
@@ -313,13 +369,42 @@ export class Game {
     }
     results.sort((a, b) => b.baseScore - a.baseScore);
 
+    // Bonus
+    const bonus = (row: ProcessedResult, addition: number) => {
+      row.adjustedScore += addition * row.testcaseScore;
+    };
+
     // Apply language bonus
     for (const row of results) {
-      row.adjustedScore += bonuses[row.language as Lang] ?? 0;
+      bonus(row, bonuses[row.language as Lang] ?? 0);
     }
 
-    // Sort by score
-    // Apply first-of-language bonus
+    // Apply shortest-of-language bonus
+    if (this.currentRound.config.shortestOfLanguageBonus) {
+      const n = this.currentRound.config.shortestOfLanguageBonus;
+      const given = new Set();
+      for (const row of results) {
+        if (!given.has(row.language)) {
+          given.add(row.language);
+          bonus(row, n);
+        }
+      }
+    }
+
+    // Apply fast score
+    if (this.currentRound.config.fastBonus) {
+      let n = this.currentRound.config.fastBonus;
+      const sortedByTime = [...results].sort(
+        (a, b) => parseDuration(a.duration) - parseDuration(b.duration)
+      );
+      for (const row of sortedByTime) {
+        bonus(row, n);
+        n -= 2;
+        if (n < 0) {
+          break;
+        }
+      }
+    }
 
     // Round up score
     results.sort((a, b) => b.adjustedScore - a.adjustedScore);
@@ -330,7 +415,13 @@ export class Game {
 
     // Add score
     for (const row of results) {
-      this.getPlayerInCurrentSet(row).score += row.adjustedScore;
+      const player = this.getPlayerInCurrentSet(row);
+      player.score += row.adjustedScore;
+      player.scoreParts[this.currentRound.roundNumber] = row.adjustedScore;
+
+      const gamePlayer = this.getPlayerInGame(row);
+      gamePlayer.score = Math.max(gamePlayer.score, player.score);
+      gamePlayer.scoreParts[this.currentSetNumber] = player.score;
     }
 
     // Display
@@ -348,6 +439,9 @@ export class Game {
       this.languageUsageStats.total[lang as Lang] =
         (this.languageUsageStats.total[lang as Lang] || 0) + times;
     }
+
+    // Finalize
+    this.currentRound.finished = true;
   }
 
   /**
@@ -356,7 +450,8 @@ export class Game {
   showSetRanking() {
     this.view = {
       type: "set-ranking",
-      setNumber: 1,
+      setNumber: this.currentSetNumber,
+      roundNumber: this.currentRound.roundNumber,
       entries: Object.values(this.playersInCurrentSet)
         .map((player) => ({
           name: player.name,
@@ -366,14 +461,47 @@ export class Game {
     };
   }
 
+  finishSet() {
+    if (this.setIsFinished) {
+      throw new Error("Set is already finished");
+    }
+    this.view = {
+      type: "overall-ranking",
+      setNumber: this.currentSetNumber,
+      sets: Array(this.currentSetNumber)
+        .fill(0)
+        .map((_, i) => i + 1),
+      entries: Object.values(this.playersInGame)
+        .map((player) => ({
+          name: player.name,
+          points: player.score,
+          pointsBySet: player.scoreParts,
+        }))
+        .sort((a, b) => b.points - a.points),
+    };
+    this.setIsFinished = true;
+  }
+
   private getPlayerInCurrentSet(row: ProcessedResult) {
     if (!this.playersInCurrentSet[row.userId]) {
       this.playersInCurrentSet[row.userId] = {
         name: row.nickname,
+        scoreParts: {},
         score: 0,
       };
     }
     return this.playersInCurrentSet[row.userId];
+  }
+
+  private getPlayerInGame(row: ProcessedResult) {
+    if (!this.playersInGame[row.userId]) {
+      this.playersInGame[row.userId] = {
+        name: row.nickname,
+        scoreParts: {},
+        score: 0,
+      };
+    }
+    return this.playersInGame[row.userId];
   }
 
   private computeLangUsagePenalty(
@@ -402,6 +530,10 @@ export class Game {
 
   goLive() {
     this.liveView = this.view;
+  }
+
+  showText(text: string) {
+    this.view = { type: "text", text };
   }
 }
 
