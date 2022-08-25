@@ -9,6 +9,11 @@ export function gameData(game: Game) {
     fastBonus: 5,
   });
 
+  game.addPlayers([
+    "a8e0c3725446bbd1bc8e84544ef6de5e4644834",
+    "1bc6963922756fd0de3a5fe3afd940245099983"
+  ])
+
   game.play([
     {
       nickname: "chayapatr",

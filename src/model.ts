@@ -33,6 +33,8 @@ const mapLang: Partial<Record<Lang, string>> = {
   JavaScript: "JS",
 };
 
+var players: string[] = []
+
 function formatLang(lang: string) {
   return mapLang[lang as Lang] || lang;
 }
@@ -313,6 +315,14 @@ export class Game {
   }
 
   /**
+   * @description Filter out user that's not in the list
+   * @param inPlayer 
+   */
+   addPlayers(inPlayer: string[]) {
+    players = inPlayer
+  }
+
+  /**
    * @description Append the array of scores
    * @param inResults
    */
@@ -321,7 +331,7 @@ export class Game {
       throw new Error("Cannot play after the round is finished!");
     }
 
-    const results = inResults as ProcessedResult[];
+    const results = players.length === 0 ? inResults as ProcessedResult[] : inResults.filter( data => players.includes(data.userId)) as ProcessedResult[];
 
     // Append the languages usage history
     const currentRoundStats: RoundLanguageUsageStats = {
