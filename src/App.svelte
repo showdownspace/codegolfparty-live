@@ -149,6 +149,40 @@
           {/each}
         </tbody>
       </table>
+    {:else if view.type === "overall-ranking"}
+      <h1 class="text-2xl">Overall ranking</h1>
+      <table class="text-4xl font-extralight">
+        <thead>
+          <tr>
+            <th class="uppercase opacity-60 text-left text-xl">Name</th>
+            {#each view.sets as set}
+              <th class="uppercase opacity-60 text-right text-xl pl-4">
+                Set {set}
+              </th>
+            {/each}
+            <th class="uppercase opacity-60 text-right text-xl pl-4">
+              Points
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each view.entries as row}
+            <tr>
+              <td class="pr-3">
+                {formatName(row.name)}
+              </td>
+              {#each view.sets as set}
+                <td class="pl-8 text-right">
+                  {row.pointsBySet[set]}
+                </td>
+              {/each}
+              <td class="pl-8 text-right">
+                <strong>{row.points}</strong>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     {/if}
   </div>
 </div>
