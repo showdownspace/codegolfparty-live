@@ -3,7 +3,7 @@ import type { Lang } from "src/model";
 export interface PresetBonus {
   langs: Partial<Lang[]>;
   flatBonus: number;
-  multipiler?: number;
+  // multipiler?: number;
 }
 
 export const FlavorOfC: PresetBonus = {

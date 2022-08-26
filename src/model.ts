@@ -1,4 +1,5 @@
 import { clamp, result } from "lodash-es";
+import type { PresetBonus } from "./etc/preset";
 
 export type Lang =
   | "Bash"
@@ -86,6 +87,10 @@ export interface RoundConfig {
    * @description Fast bonus.
    */
   fastBonus?: number;
+  /**
+   * @description Apply preset bonus to the game for lulz
+   */
+  preset?: PresetBonus;
 }
 
 export interface EffectiveModifiers {
@@ -283,7 +288,16 @@ export class Game {
       }
     }
 
-    const bonuses = this.currentRound.config.bonuses || {};
+    // Unpack bonus preset
+
+    let bonusPreset: Partial<Record<Lang, number>> = {};
+    this.currentRound.config.preset?.langs.forEach((lang) => {
+      if (!lang) return;
+      bonusPreset[lang] = this.currentRound.config.preset?.flatBonus;
+    });
+
+    const bonuses =
+      { ...this.currentRound.config.bonuses, ...bonusPreset } || {};
     for (const [lang, bonus] of Object.entries(bonuses)) {
       modifiers.push({
         name: `${formatLang(lang)} +${bonus}`,
@@ -477,6 +491,9 @@ export class Game {
     };
   }
 
+  /**
+   * @description Run this function after the round is finished to switch the view
+   */
   finishSet() {
     if (this.setIsFinished) {
       throw new Error("Set is already finished");
